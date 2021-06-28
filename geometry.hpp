@@ -1,5 +1,5 @@
-#ifndef __GEOMETRY_H__
-#define __GEOMETRY_H__
+#ifndef __GEOMETRY_HPP__
+#define __GEOMETRY_HPP__
 #include <cmath>
 #include <vector>
 #include <cassert>

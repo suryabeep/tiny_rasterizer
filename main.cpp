@@ -8,25 +8,25 @@
 
 const TGAColor white = TGAColor(255, 255, 255, 255);
 const TGAColor red   = TGAColor(255, 0,   0,   255);
+const TGAColor green = TGAColor(0,   255, 0,   255);
 Model *model = NULL;
 const int width  = 800;
 const int height = 800;
 
-void line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color) {
+void line(Vec2i p0, Vec2i p1, TGAImage &image, TGAColor color) {
     bool steep = false;
-    if (std::abs(x0-x1)<std::abs(y0-y1)) {
-        std::swap(x0, y0);
-        std::swap(x1, y1);
+    if (std::abs(p0.x-p1.x)<std::abs(p0.y-p1.y)) {
+        std::swap(p0.x, p0.y);
+        std::swap(p1.x, p1.y);
         steep = true;
     }
-    if (x0>x1) {
-        std::swap(x0, x1);
-        std::swap(y0, y1);
+    if (p0.x>p1.x) {
+        std::swap(p0, p1);
     }
 
-    for (int x=x0; x<=x1; x++) {
-        float t = (x-x0)/(float)(x1-x0);
-        int y = y0*(1.-t) + y1*t;
+    for (int x=p0.x; x<=p1.x; x++) {
+        float t = (x-p0.x)/(float)(p1.x-p0.x);
+        int y = p0.y*(1.-t) + p1.y*t;
         if (steep) {
             image.set(y, x, color);
         } else {
@@ -49,7 +49,6 @@ Vec3f barycentric(Vec3f A, Vec3f B, Vec3f C, Vec3f P) {
 }
 
 void triangle(Vec3f *pts, float *zbuffer, TGAImage &image, TGAColor color) {
-    // create the bounding box
     Vec2f bboxmin( std::numeric_limits<float>::max(),  std::numeric_limits<float>::max());
     Vec2f bboxmax(-std::numeric_limits<float>::max(), -std::numeric_limits<float>::max());
     Vec2f clamp(image.get_width()-1, image.get_height()-1);
@@ -59,11 +58,9 @@ void triangle(Vec3f *pts, float *zbuffer, TGAImage &image, TGAColor color) {
             bboxmax[j] = std::min(clamp[j], std::max(bboxmax[j], pts[i][j]));
         }
     }
-    // for each pixel in the bounding box
     Vec3f P;
     for (P.x=bboxmin.x; P.x<=bboxmax.x; P.x++) {
         for (P.y=bboxmin.y; P.y<=bboxmax.y; P.y++) {
-            // check if the pixel is inside the triangle
             Vec3f bc_screen  = barycentric(pts[0], pts[1], pts[2], P);
             if (bc_screen.x<0 || bc_screen.y<0 || bc_screen.z<0) continue;
             P.z = 0;
@@ -87,35 +84,26 @@ int main(int argc, char** argv) {
         model = new Model("models/african_head.obj");
     }
 
-    Vec3f light_dir(0, 0, -1);
-
     float *zbuffer = new float[width*height];
-
     for (int i=width*height; i--; zbuffer[i] = -std::numeric_limits<float>::max());
 
     TGAImage image(width, height, TGAImage::RGB);
+    Vec3f light_dir(0,0,-1);
     for (int i=0; i<model->nfaces(); i++) {
-        Face faceObj = model->face(i);
-        std::vector<int> face = faceObj.getVertices();
-        std::vector<Vec3f> pts;
-        std::vector<Vec3f> world_coords;
-        for (size_t i = 0; i < 3; i++) {
-            world_coords.push_back(model->vert(face[i]));
-            pts.push_back(world2screen(model->vert(face[i])));
+        std::vector<int> face = model->face(i);
+        Vec3f screen_coords[3];
+        Vec3f world_coords[3];
+        for (int j=0; j<3; j++) {
+            Vec3f v = model->vert(face[j]);
+            screen_coords[j] = world2screen(v);
+            world_coords[j]  = v;
         }
-
-        // Vec3f pts[3];
-        // Vec3f world_coords[3];
-        // for (int j=0; j<3; j++){
-        //     world_coords[j] = model->vert(face[j]);
-        //     pts[j] = world2screen(model->vert(face[j]));
-        // }
-        Vec3f n = cross((world_coords[2]-world_coords[0]),(world_coords[1]-world_coords[0])); 
-        n.normalize(); 
-        float intensity = n*light_dir; 
-        if (intensity>0) { 
-            triangle(&pts.front(), zbuffer, image, TGAColor(intensity*255, intensity*255, intensity*255, 255));
-        } 
+        Vec3f n = cross((world_coords[2]-world_coords[0]),(world_coords[1]-world_coords[0]));
+        n.normalize();
+        float intensity = n*light_dir;
+        if (intensity>0) {
+            triangle(screen_coords, zbuffer, image, TGAColor(intensity*255, intensity*255, intensity*255, 255));
+        }
     }
 
     image.flip_vertically(); // i want to have the origin at the left bottom corner of the image
