@@ -84,25 +84,41 @@ int main(int argc, char** argv) {
         model = new Model("models/african_head.obj");
     }
 
+    TGAImage texture;
+    texture.read_tga_file("african_head_diffuse.tga");
+    texture.flip_vertically();
+    int texwidth  = texture.get_width();
+    int texheight = texture.get_height();
+
     float *zbuffer = new float[width*height];
     for (int i=width*height; i--; zbuffer[i] = -std::numeric_limits<float>::max());
 
     TGAImage image(width, height, TGAImage::RGB);
     Vec3f light_dir(0,0,-1);
     for (int i=0; i<model->nfaces(); i++) {
-        std::vector<int> face = model->face(i);
+        Face f = model->face(i);
         Vec3f screen_coords[3];
         Vec3f world_coords[3];
+        Vec3f face_normal;
+        Vec3f face_texcoord;
         for (int j=0; j<3; j++) {
-            Vec3f v = model->vert(face[j]);
+            Vec3f v = model->vert(f.vertIndices[j]);
             screen_coords[j] = world2screen(v);
             world_coords[j]  = v;
+            face_normal = face_normal + model->normal(f.normIndices[j]);
+            face_texcoord = face_texcoord + model->texcoord(f.texIndices[j]);
         }
+
+        face_texcoord = face_texcoord / 3;
+        int sample_x = (int)(face_texcoord[0] * texwidth);
+        int sample_y = (int)(face_texcoord[1] * texheight);
+        TGAColor sample_color = texture.get(sample_x, sample_y);
+
         Vec3f n = cross((world_coords[2]-world_coords[0]),(world_coords[1]-world_coords[0]));
         n.normalize();
         float intensity = n*light_dir;
         if (intensity>0) {
-            triangle(screen_coords, zbuffer, image, TGAColor(intensity*255, intensity*255, intensity*255, 255));
+            triangle(screen_coords, zbuffer, image, sample_color);
         }
     }
 
