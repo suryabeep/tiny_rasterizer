@@ -48,7 +48,7 @@ Vec3f barycentric(Vec3f A, Vec3f B, Vec3f C, Vec3f P) {
     return Vec3f(-1,1,1); // in this case generate negative coordinates, it will be thrown away by the rasterizator
 }
 
-void triangle(Vec3f *pts, float *zbuffer, TGAImage &image, TGAColor color) {
+void triangle(Vec3f *pts, Vec3f* tcs, float *zbuffer, TGAImage &image, TGAColor color, TGAImage &texture) {
     Vec2f bboxmin( std::numeric_limits<float>::max(),  std::numeric_limits<float>::max());
     Vec2f bboxmax(-std::numeric_limits<float>::max(), -std::numeric_limits<float>::max());
     Vec2f clamp(image.get_width()-1, image.get_height()-1);
@@ -59,15 +59,27 @@ void triangle(Vec3f *pts, float *zbuffer, TGAImage &image, TGAColor color) {
         }
     }
     Vec3f P;
+    int texheight = texture.get_height();
+    int texwidth = texture.get_width();
     for (P.x=bboxmin.x; P.x<=bboxmax.x; P.x++) {
         for (P.y=bboxmin.y; P.y<=bboxmax.y; P.y++) {
             Vec3f bc_screen  = barycentric(pts[0], pts[1], pts[2], P);
             if (bc_screen.x<0 || bc_screen.y<0 || bc_screen.z<0) continue;
+
+            // texture stuff
+            Vec3f one = tcs[0] * bc_screen[0];
+            Vec3f two = tcs[1] * bc_screen[1];
+            Vec3f three = tcs[2] * bc_screen[2];
+            Vec3f total = one + two + three;
+            int tex_x = (int) (texwidth * total[0]);
+            int tex_y = (int) (texheight * total[1]);
+            TGAColor sample_color = texture.get(tex_x, tex_y);
+
             P.z = 0;
             for (int i=0; i<3; i++) P.z += pts[i][2]*bc_screen[i];
             if (zbuffer[int(P.x+P.y*width)]<P.z) {
                 zbuffer[int(P.x+P.y*width)] = P.z;
-                image.set(P.x, P.y, color);
+                image.set(P.x, P.y, sample_color);
             }
         }
     }
@@ -101,11 +113,13 @@ int main(int argc, char** argv) {
         Vec3f world_coords[3];
         Vec3f face_normal;
         Vec3f face_texcoord;
+        Vec3f face_tcs[3];
         for (int j=0; j<3; j++) {
             Vec3f v = model->vert(f.vertIndices[j]);
             screen_coords[j] = world2screen(v);
             world_coords[j]  = v;
             face_normal = face_normal + model->normal(f.normIndices[j]);
+            face_tcs[j] = model->texcoord(f.texIndices[j]);
             face_texcoord = face_texcoord + model->texcoord(f.texIndices[j]);
         }
 
@@ -118,7 +132,7 @@ int main(int argc, char** argv) {
         n.normalize();
         float intensity = n*light_dir;
         if (intensity>0) {
-            triangle(screen_coords, zbuffer, image, sample_color);
+            triangle(screen_coords, face_tcs, zbuffer, image, sample_color, texture);
         }
     }
 
