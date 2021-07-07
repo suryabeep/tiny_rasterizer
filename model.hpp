@@ -1,5 +1,4 @@
-#ifndef __MODEL_H__
-#define __MODEL_H__
+#pragma once
 
 #include <vector>
 #include <iostream>
@@ -29,8 +28,11 @@ public:
 	int nverts();
 	int nfaces();
 	Vec3f vert(int i);
+    Vec3f vert(int iface, int nthvert);
     Vec3f normal(int i);
+    Vec3f normal(int iface, int nthvert);
     Vec3f texcoord(int i);
+    Vec3f texcoord(int iface, int nthvert);
 	Face face(int idx);
 };
 
@@ -98,12 +100,22 @@ Vec3f Model::vert(int i) {
     return _verts[i];
 }
 
+Vec3f Model::vert(int iface, int nthvert) {
+    return vert(face(iface).vertIndices[nthvert]);
+}
+
 Vec3f Model::normal(int i) {
     return _normals[i];
+}
+
+Vec3f Model::normal(int iface, int nthvert) {
+    return normal(face(iface).normIndices[nthvert]);
 }
 
 Vec3f Model::texcoord(int i) {
     return _texcoords[i];
 }
 
-#endif //__MODEL_H__
+Vec3f Model::texcoord(int iface, int nthvert) {
+    return texcoord(face(iface).texIndices[nthvert]);
+}

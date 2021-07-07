@@ -1,5 +1,5 @@
 COMPILER = g++
-FLAGS    = -Wall -std=c++11
+FLAGS    = -Wall -std=c++11 -g
 LIBS	 = -lSDL2
 
 all:
@@ -7,7 +7,7 @@ all:
 	$(COMPILER) $(FLAGS) geometry.hpp -o build/geometry.o
 	$(COMPILER) $(FLAGS) model.hpp    -o build/model.o  
 	$(COMPILER) $(FLAGS) tgaimage.hpp -o build/image.o
-	$(COMPILER) $(FLAGS) $(LIBS) main.cpp     -o main
+	$(COMPILER) $(FLAGS) $(LIBS) main.cpp -o main
 
 clean:
 	-rm -rf build
