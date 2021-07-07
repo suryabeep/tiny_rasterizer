@@ -95,14 +95,14 @@ void triangle(Vec3f *pts, Vec3f* tcs, Image &image, TGAImage &texture) {
     }
 }
 
-void triangle(Vec3f *pts, Vec3f* tcs, Image &image, TGAImage &texture, IShader& shader, Vec3f intensities) {
+void triangle(Vec3f *screen_coords, Vec3f* tcs, Vec3f* face_norms, Vec3f light_dir, Image &image, TGAImage &texture, IShader& shader) {
     Vec2f bboxmin( std::numeric_limits<float>::max(),  std::numeric_limits<float>::max());
     Vec2f bboxmax(-std::numeric_limits<float>::max(), -std::numeric_limits<float>::max());
     Vec2f clampVec(image._width - 1, image._height - 1);
     for (int i=0; i<3; i++) {
         for (int j=0; j<2; j++) {
-            bboxmin[j] = std::max(0.f,      std::min(bboxmin[j], pts[i][j]));
-            bboxmax[j] = std::min(clampVec[j], std::max(bboxmax[j], pts[i][j]));
+            bboxmin[j] = std::max(0.f,      std::min(bboxmin[j], screen_coords[i][j]));
+            bboxmax[j] = std::min(clampVec[j], std::max(bboxmax[j], screen_coords[i][j]));
         }
     }
 
@@ -111,7 +111,7 @@ void triangle(Vec3f *pts, Vec3f* tcs, Image &image, TGAImage &texture, IShader& 
     int texwidth = texture.get_width();
     for (P.x=bboxmin.x; P.x<=bboxmax.x; P.x++) {
         for (P.y=bboxmin.y; P.y<=bboxmax.y; P.y++) {
-            Vec3f bc_screen  = barycentric(pts[0], pts[1], pts[2], P);
+            Vec3f bc_screen  = barycentric(screen_coords[0], screen_coords[1], screen_coords[2], P);
             if (bc_screen.x<0 || bc_screen.y<0 || bc_screen.z<0) continue;
 
             Vec3f one = tcs[0] * bc_screen[0];
@@ -122,12 +122,13 @@ void triangle(Vec3f *pts, Vec3f* tcs, Image &image, TGAImage &texture, IShader& 
             int tex_y = (int) (texheight * total[1]);
             TGAColor sample_color = texture.get(tex_x, tex_y);
 
-            float intensity = intensities * bc_screen;
+            total = face_norms[0] * bc_screen[0] + face_norms[1] * bc_screen[1] + face_norms[2] * bc_screen[2];
+            float intensity = total * light_dir;
             clamp(intensity, 0.0f, 1.0f);
 
             P.z = 0;
             for (int i=0; i<3; i++) 
-                P.z += pts[i][2]*bc_screen[i];
+                P.z += screen_coords[i][2]*bc_screen[i];
 
             Vec3i fill_color(sample_color.r, sample_color.g, sample_color.b);
 

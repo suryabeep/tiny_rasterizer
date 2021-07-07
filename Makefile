@@ -13,3 +13,4 @@ clean:
 	-rm -rf build
 	-rm -f *.tga
 	-rm main
+	rm -rf *.dSYM

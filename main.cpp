@@ -26,22 +26,22 @@ time_t prev;
 Matrix ModelView, Viewport, Projection;
 
 // this shader thing isn't working yet, will get to it soon. For now, just do shading 'manually'
-// struct GouraudShader : public IShader {
-//     Vec3f varying_intensity; // written by vertex shader, read by fragment shader
+struct GouraudShader : public IShader {
+    Vec3f varying_intensity; // written by vertex shader, read by fragment shader
 
-//     virtual Vec4f vertex(int iface, int nthvert) {
-//         Vec4f gl_Vertex = embed<4>(model->vert(iface, nthvert)); // read the vertex from .obj file
-//         gl_Vertex = Viewport*Projection*ModelView*gl_Vertex;     // transform it to screen coordinates
-//         varying_intensity[nthvert] = std::max(0.f, model->normal(iface, nthvert)*light_dir); // get diffuse lighting intensity
-//         return gl_Vertex;
-//     }
+    virtual Vec4f vertex(int iface, int nthvert) {
+        Vec4f gl_Vertex = embed<4>(model->vert(iface, nthvert)); // read the vertex from .obj file
+        gl_Vertex = Viewport*Projection*ModelView*gl_Vertex;     // transform it to screen coordinates
+        varying_intensity[nthvert] = std::max(0.f, model->normal(iface, nthvert)*light_dir); // get diffuse lighting intensity
+        return gl_Vertex;
+    }
 
-//     virtual bool fragment(Vec3f bar, TGAColor &color) {
-//         float intensity = varying_intensity*bar;   // interpolate intensity for the current pixel
-//         color = TGAColor(255.0f * intensity, 255.0f * intensity, 255.0f * intensity, 255.0f * intensity) ; // well duh
-//         return false;                              // no, we do not discard this pixel
-//     }
-// };
+    virtual bool fragment(Vec3f bar, TGAColor &color) {
+        float intensity = varying_intensity*bar;   // interpolate intensity for the current pixel
+        color = TGAColor(255.0f * intensity, 255.0f * intensity, 255.0f * intensity, 255.0f * intensity) ; // well duh
+        return false;                              // no, we do not discard this pixel
+    }
+};
 
 void draw(TGAImage &texture, Image &image, IShader &shader) {
     
@@ -50,20 +50,17 @@ void draw(TGAImage &texture, Image &image, IShader &shader) {
         Vec3f screen_coords[3];
         Vec3f face_tcs[3];
         Vec3f face_norms[3];
-        Vec3f intensities;
 
         for (int j=0; j<3; j++) {
             Vec3f v = model->vert(i, j);
             Vec4f gl_Vertex = Vec4f(v.x, v.y, v.z, 1.0f);
 
             screen_coords[j] = m2v(Viewport * Projection * v2m(gl_Vertex.xyz()));
-
             face_tcs[j] = model->texcoord(i, j);
             face_norms[j] = model->normal(i, j);
-            intensities[j] = (model->normal(i, j).normalize() * light_dir.normalize());
         }
 
-        triangle(screen_coords, face_tcs, image, texture, shader, intensities);
+        triangle(screen_coords, face_tcs, face_norms, light_dir, image, texture, shader);
     }
 }
 
